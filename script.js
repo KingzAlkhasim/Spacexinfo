@@ -1,0 +1,258 @@
+
+        // -------------------------
+        // Simulated streaming for crypto & simple chart for S&P
+        // -------------------------
+        const coins = [
+            {symbol:'BTC', name:'Bitcoin', price: 47823.45},
+            {symbol:'ETH', name:'Ethereum', price: 3382.12},
+            {symbol:'BNB', name:'BNB', price: 286.44},
+            {symbol:'SOL', name:'Solana', price: 22.81},
+            {symbol:'ADA', name:'Cardano', price: 0.456},
+            {symbol:'DOGE', name:'Dogecoin', price: 0.072}
+        ];
+
+        // Create coin DOM elements
+        const coinList = document.getElementById('coinList');
+        const cryptoGrid = document.getElementById('cryptoGrid');
+
+        coins.forEach((c, idx) => {
+            // List item (ticker)
+            const item = document.createElement('div');
+            item.className = 'coin-item';
+            item.id = 'coin-' + c.symbol;
+            item.innerHTML = `
+                <div style="display:flex;flex-direction:column;min-width:86px">
+                    <div style="display:flex;align-items:center;gap:.45rem">
+                        <div class="coin-symbol">${c.symbol}</div>
+                        <div class="coin-name">${c.name}</div>
+                    </div>
+                    <div style="display:flex;gap:.5rem;align-items:center;margin-top:.25rem">
+                        <div class="coin-price" id="price-${c.symbol}">${formatPrice(c.price)}</div>
+                        <div class="coin-change" id="change-${c.symbol}" style="font-size:.82rem">0.00%</div>
+                    </div>
+                </div>
+                <svg class="sparkline" id="spark-${c.symbol}" viewBox="0 0 70 28" preserveAspectRatio="none"></svg>
+            `;
+            coinList.appendChild(item);
+
+            // Detailed card for crypto section
+            const card = document.createElement('div');
+            card.className = 'feature-card';
+            card.style.padding = '0.9rem';
+            card.innerHTML = `
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem">
+                    <div style="font-weight:800">${c.symbol} <span style="font-weight:600;color:var(--muted);font-size:.85rem"> ${c.name}</span></div>
+                    <div style="text-align:right">
+                        <div style="font-weight:800" id="card-price-${c.symbol}">${formatPrice(c.price)}</div>
+                        <div style="font-size:.85rem;color:var(--muted)" id="card-change-${c.symbol}">0.00%</div>
+                    </div>
+                </div>
+                <svg id="detail-spark-${c.symbol}" viewBox="0 0 300 90" width="100%" height="90" preserveAspectRatio="none"></svg>
+            `;
+            cryptoGrid.appendChild(card);
+
+            // initialize sparkline data storage
+            c.history = new Array(22).fill(c.price);
+        });
+
+        function formatPrice(n){
+            if(n >= 1000) return '$' + Number(n).toLocaleString(undefined, {maximumFractionDigits:2});
+            if(n >= 1) return '$' + Number(n).toFixed(2);
+            return Number(n).toFixed(6);
+        }
+
+        // Random walk generator tailored to volatility
+        function tick(){
+            coins.forEach(c => {
+                const vol = Math.max(0.0005, Math.abs(Math.log10(c.price || 1)) * 0.002 + 0.001);
+                const rnd = (Math.random() - 0.48) * vol * (Math.random() > 0.98 ? 6 : 1);
+                const newPrice = Math.max(0.000001, c.price * (1 + rnd));
+                const changePct = ((newPrice - c.price) / c.price) * 100;
+                c.price = newPrice;
+                // update history
+                c.history.push(newPrice);
+                if(c.history.length > 40) c.history.shift();
+
+                // update DOM nodes
+                const priceEl = document.getElementById('price-' + c.symbol);
+                const changeEl = document.getElementById('change-' + c.symbol);
+                const cardPriceEl = document.getElementById('card-price-' + c.symbol);
+                const cardChangeEl = document.getElementById('card-change-' + c.symbol);
+                if(priceEl) priceEl.textContent = formatPrice(c.price);
+                if(cardPriceEl) cardPriceEl.textContent = formatPrice(c.price);
+
+                const pct = ((c.price - c.history[0]) / c.history[0]) * 100;
+                const displayPct = (pct).toFixed(2) + '%';
+                if(changeEl){
+                    changeEl.textContent = displayPct;
+                    changeEl.className = 'coin-change ' + (pct >= 0 ? 'positive' : 'negative');
+                }
+                if(cardChangeEl){
+                    cardChangeEl.textContent = displayPct;
+                    cardChangeEl.style.color = pct >= 0 ? 'var(--accent-start)' : '#ff6b6b';
+                }
+
+                // update sparkline(s)
+                drawSparkline('spark-' + c.symbol, c.history, {width:70,height:28,small:true});
+                drawSparkline('detail-spark-' + c.symbol, c.history, {width:300,height:90,small:false});
+            });
+
+            // Also update S&P quick chart
+            updateSPChart();
+        }
+
+        // draw sparkline into SVG id
+        function drawSparkline(svgId, data, opts = {width:70,height:28,small:false}){
+            const svg = document.getElementById(svgId);
+            if(!svg) return;
+            const w = opts.width, h = opts.height;
+            const min = Math.min(...data);
+            const max = Math.max(...data);
+            const len = data.length;
+            const pad = 2;
+            // normalize
+            const points = data.map((v,i) => {
+                const x = (i/(len-1))*(w - pad*2) + pad;
+                const y = (max === min) ? h/2 : (h - pad) - ((v - min)/(max - min))*(h - pad*2);
+                return [x,y];
+            });
+            // path
+            const pathD = points.map((p,i) => (i===0?`M ${p[0].toFixed(2)} ${p[1].toFixed(2)}`:`L ${p[0].toFixed(2)} ${p[1].toFixed(2)}`)).join(' ');
+            // gradient color based on last change
+            const last = data[data.length-1];
+            const first = data[0];
+            const up = last >= first;
+            // build svg contents
+            svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
+            const strokeWidth = opts.small ? 1.6 : 2.4;
+            svg.innerHTML = `
+                <defs>
+                    <linearGradient id="gUp-${svgId}" x1="0" x2="1">
+                        <stop offset="0" stop-color="${up ? 'rgba(0,255,135,0.95)' : 'rgba(255,71,87,0.95)'}"></stop>
+                        <stop offset="1" stop-color="rgba(0,212,255,0.6)"></stop>
+                    </linearGradient>
+                </defs>
+                <path d="${pathD}" fill="none" stroke="${up ? '#00ff87' : '#ff6b6b'}" stroke-width="${strokeWidth}" stroke-linecap="round" stroke-linejoin="round" opacity="0.98" style="filter:drop-shadow(0 4px 8px rgba(0,0,0,0.45)); transition: all 700ms linear"/>
+            `;
+        }
+
+        // S&P simulated small chart
+        const sp = {price: 4783.45, history: new Array(80).fill(4783.45) };
+        function updateSPChart(){
+            const vol = 0.0006;
+            const rnd = (Math.random() - 0.5) * vol * (Math.random() > 0.985 ? 4 : 1);
+            sp.price = Math.max(1, sp.price * (1 + rnd));
+            sp.history.push(sp.price);
+            if(sp.history.length > 120) sp.history.shift();
+
+            // draw into spChart
+            const svg = document.getElementById('spChart');
+            const w = 520, h = 170;
+            const data = sp.history.slice(-120);
+            const len = data.length;
+            const min = Math.min(...data), max = Math.max(...data);
+            const pad = 6;
+            const points = data.map((v,i) => {
+                const x = (i/(len-1))*(w - pad*2) + pad;
+                const y = (max === min) ? h/2 : (h - pad) - ((v - min)/(max - min))*(h - pad*2);
+                return [x,y];
+            });
+            const pathD = points.map((p,i) => (i===0?`M ${p[0]} ${p[1]}`:`L ${p[0]} ${p[1]}`)).join(' ');
+            svg.innerHTML = `
+                <defs>
+                    <linearGradient id="spg" x1="0" x2="0" y1="0" y2="1">
+                        <stop offset="0" stop-color="rgba(0,212,255,0.18)"></stop>
+                        <stop offset="1" stop-color="rgba(0,255,135,0.02)"></stop>
+                    </linearGradient>
+                </defs>
+                <path d="${pathD}" fill="none" stroke="url(#spg)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" opacity="1" />
+            `;
+            // update price and change
+            document.getElementById('spPrice').textContent = '$' + sp.price.toLocaleString(undefined, {maximumFractionDigits:2});
+            const pct = ((sp.price - sp.history[0]) / sp.history[0] * 100);
+            const spChange = document.getElementById('spChange');
+            spChange.textContent = (pct >=0 ? '+' : '') + pct.toFixed(2) + '%';
+            spChange.style.background = pct >=0 ? 'rgba(0,255,135,0.12)' : 'rgba(255,71,87,0.08)';
+            spChange.style.color = pct >=0 ? 'var(--accent-start)' : '#ff6b6b';
+        }
+
+        // Start tick loop
+        setInterval(tick, 1000);
+        // initial draw
+        tick();
+
+        // -------------------------
+        // Form handlers & small UI
+        // -------------------------
+        function submitContact(e){
+            e.preventDefault();
+            const name = document.getElementById('name').value || 'User';
+            const email = document.getElementById('email').value || '';
+            // fake submit
+            alert('Thanks, ' + name + '. We received your message and will reply to ' + email + '.');
+            e.target.reset();
+        }
+        function startDemo(){
+            alert('Demo requested. A member of our team will reach out.');
+        }
+        function openSignIn(){
+            alert('Sign in temporarily disabled in this demo.');
+        }
+
+        // small accessibility: smooth scroll
+        document.querySelectorAll('a[href^="#"]').forEach(a=>{
+            a.addEventListener('click', (ev)=>{
+                const t = ev.currentTarget.getAttribute('href');
+                if(t && t.startsWith('#')){
+                    ev.preventDefault();
+                    closeMobileNav(); // close mobile nav if open
+                    const el = document.querySelector(t);
+                    if(el) el.scrollIntoView({behavior:'smooth', block:'start'});
+                }
+            });
+        });
+
+        // -------------------------
+        // Mobile nav behavior (hamburger)
+        // -------------------------
+        const hamburger = document.getElementById('hamburger');
+        const mobileNav = document.getElementById('mobileNav');
+        const mobileOverlay = document.getElementById('mobileOverlay');
+
+        function openMobileNav(){
+            hamburger.classList.add('open');
+            hamburger.setAttribute('aria-expanded','true');
+            mobileNav.classList.add('open');
+            mobileNav.setAttribute('aria-hidden','false');
+            mobileOverlay.classList.add('open');
+            mobileOverlay.setAttribute('aria-hidden','false');
+            // trap focus: focus first link
+            setTimeout(()=> {
+                const firstLink = mobileNav.querySelector('a, button');
+                if(firstLink) firstLink.focus();
+            }, 80);
+        }
+        function closeMobileNav(){
+            hamburger.classList.remove('open');
+            hamburger.setAttribute('aria-expanded','false');
+            mobileNav.classList.remove('open');
+            mobileNav.setAttribute('aria-hidden','true');
+            mobileOverlay.classList.remove('open');
+            mobileOverlay.setAttribute('aria-hidden','true');
+        }
+
+        hamburger.addEventListener('click', ()=>{
+            if(mobileNav.classList.contains('open')) closeMobileNav(); else openMobileNav();
+        });
+        mobileOverlay.addEventListener('click', closeMobileNav);
+        // close on escape
+        document.addEventListener('keydown', e=>{
+            if(e.key === 'Escape') closeMobileNav();
+        });
+
+        // close mobile nav when resize to large screens
+        window.addEventListener('resize', ()=>{
+            if(window.innerWidth > 980) closeMobileNav();
+        });
+
+     
