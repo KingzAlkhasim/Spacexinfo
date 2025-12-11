@@ -31,6 +31,18 @@ You are using a custom table (assumed to be named `users`) which is **not** one 
 
 1.  **Table Creation:** Ensure your WordPress database contains the `users` table with the following schema:
 
+```
+CREATE TABLE users (
+    id INT(11) AUTO_INCREMENT PRIMARY KEY,
+    username VARCHAR(50) NOT NULL UNIQUE,
+    firstname VARCHAR(100) NOT NULL,
+    lastname VARCHAR(100) NOT NULL,
+    phone VARCHAR(20) NOT NULL,
+    email VARCHAR(100) NOT NULL UNIQUE,
+    password VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);```
+
     ```sql
     CREATE TABLE users (
         id INT(11) UNSIGNED AUTO_INCREMENT PRIMARY KEY,
