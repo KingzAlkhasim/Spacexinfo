@@ -1,114 +1,50 @@
-# Spacexinfo
+# Spacexinfo - Premium Trading & Crypto Dashboard Template (PHP/MySQL for WordPress)
 
-## 📄 Project Readme: Spacexinfo Trading Dashboard
+## 💡 Overview
 
-This repository contains a user-facing dashboard template (`prepare-page.php`) and associated login/redirect scripts for the Spacexinfo platform. It features user authentication, session management, and database integration to display real-time user data.
+This template provides a professional, fully responsive user dashboard designed specifically for a **Trading, Brokerage, or Financial platform**. This is a dynamic, full-stack solution built on PHP/MySQL and structured to function seamlessly within any standard WordPress environment as a Custom Page Template.
 
-### 🚀 Key Features
+### 🚀 Key Selling Features
 
-  * **WordPress Template Integration:** Designed to function as a custom WordPress Page Template.
-  * **Secure Authentication:** Uses PHP sessions for logged-in status validation and role-based access control.
-  * **Database Integration:** Securely fetches user data (specifically the **balance**) from a custom MySQL table.
-  * **Modern UI:** Responsive, dark-mode dashboard interface with HTML/CSS.
-  * **Modular Scripts:** Includes JavaScript functions for navigation, quick actions, and mobile menu toggling.
+* **High-Value Niche:** A ready-made UI/UX solution for the lucrative trading and crypto brokerage market.
+* **Dynamic, Full-Stack Code:** Includes server-side logic (PHP/MySQL) for personalized user experiences.
+* **WordPress Integration Ready:** Designed to run as a Custom Page Template, inheriting the WordPress environment and utilizing the secure `$wpdb` object for database access.
+* **Secure Authentication Ready:** Built-in logic relies on PHP sessions (`$_SESSION`) for logged-in status validation.
+* **Role-Based Access Control (RBAC):** Supports conditional feature display based on the user's custom `role` (e.g., 'user', 'admin').
+* **Monetization Ready:** Features real-time display of the user's current **trading balance** (fetched directly from the database).
+* **Modern UI:** Fully responsive, dark-mode dashboard interface built with clean HTML5, CSS3, and Vanilla JavaScript.
 
 ### 🛠️ Technology Stack
 
-  * **Core:** **PHP** (Server-side logic, sessions, database queries).
-  * **Platform:** **WordPress** (Used for templating and database environment).
-  * **Database:** **MySQL/MariaDB** (accessed via WordPress's `$wpdb` object).
-  * **Frontend:** **HTML5**, **CSS3**, and **Vanilla JavaScript**.
+| Component | Role | Notes |
+| :--- | :--- | :--- |
+| **Server-Side** | **PHP** | Logic, session management, and database queries. |
+| **Platform** | **WordPress** | Template engine and provides the `$wpdb` database connection object. |
+| **Database** | **MySQL/MariaDB** | Requires a custom `users` table. |
+| **Frontend** | **HTML5, CSS3, JS** | Responsive design and interactive UI. |
 
------
+---
 
-## ⚙️ Setup and Installation (WordPress)
+## ⚙️ Setup and Installation Guide
 
-Follow these steps to deploy and run the code within a WordPress environment.
+This template requires a functional WordPress installation and a custom login script (like your assumed `login-page.php`) to handle user sessions.
 
-### 1\. Database Setup
+### 1. Database Setup (Custom `users` Table)
 
-You are using a custom table (assumed to be named `users`) which is **not** one of the default WordPress tables.
+The template requires a single, custom table named `users` to manage all authentication, roles, and user balance data.
 
-1.  **Table Creation:** Ensure your WordPress database contains the `users` table with the following schema:
+Run the following SQL query to create the necessary table schema in your WordPress database:
 
-```
+```sql
 CREATE TABLE users (
-    id INT(11) AUTO_INCREMENT PRIMARY KEY,
-    username VARCHAR(50) NOT NULL UNIQUE,
-    firstname VARCHAR(100) NOT NULL,
-    lastname VARCHAR(100) NOT NULL,
-    phone VARCHAR(20) NOT NULL,
+    id INT(11) UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    username VARCHAR(50) NOT NULL UNIQUE, 
+    firstname VARCHAR(100),
+    lastname VARCHAR(100),
+    phone VARCHAR(20),
     email VARCHAR(100) NOT NULL UNIQUE,
-    password VARCHAR(255) NOT NULL,
+    password VARCHAR(255) NOT NULL, /* Stores the secure password HASH (e.g., via password_hash()) */
+    role VARCHAR(10) NOT NULL DEFAULT 'user', /* Used for access control ('user', 'admin', etc.) */
+    balance DECIMAL(10, 2) NOT NULL DEFAULT '0.00', /* The user's current trading balance */
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
-
-    sql
-    CREATE TABLE users (
-        id INT(11) UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-        username VARCHAR(50) NOT NULL,
-        email VARCHAR(100) NOT NULL UNIQUE,
-        password VARCHAR(255) NOT NULL,
-        role VARCHAR(10) NOT NULL DEFAULT 'user', -- e.g., 'user', 'admin'
-        balance DECIMAL(10, 2) NOT NULL DEFAULT '0.00',
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    );
-    ```
-
-2.  **User Authentication:** The login script (`login-page.php`) must handle user authentication by querying this custom table and verifying the password hash using PHP's `password_verify()`. Upon success, it must set the following essential PHP session variables:
-
-      * `$_SESSION['logged_in'] = true;`
-      * `$_SESSION['user_id'] = [User ID];`
-      * `$_SESSION['username'] = [Username];`
-
-### 2\. File Placement & Integration
-
-1.  **Dashboard Template:** Place `prepare-page.php` into your active WordPress theme directory (or child theme).
-2.  **Create Page:** In the WordPress Admin, create a new Page (e.g., "Dashboard") and select **Spacexinfo Prepare Page** from the Page Attributes Template dropdown.
-3.  **Authentication Files:** Ensure your login script (`login-page.php`) and any other necessary scripts are correctly set up to handle session creation *before* redirecting to the Dashboard page URL (e.g., `/dashboard/`).
-
-### 3\. Key PHP Code Snippet in `prepare-page.php`
-
-The dashboard uses WordPress's built-in database functions for secure data retrieval:
-
-```php
-// Load WordPress environment and database access
-global $wpdb;
-
-// ... Session check logic ...
-
-// Securely retrieve balance for the logged-in user
-$table_name = 'users'; // Your custom table name
-$user_id = $_SESSION['user_id']; 
-
-$sql = $wpdb->prepare("SELECT balance FROM $table_name WHERE id = %d", $user_id);
-$current_balance = $wpdb->get_var($sql);
-
-if ($current_balance === null) {
-    $current_balance = 0.00;
-}
-```
-
------
-
-## 📂 Project Structure & Navigation
-
-The primary files included in this repository serve the following purposes:
-
-| File / Path | Description | Notes |
-| :--- | :--- | :--- |
-| `prepare-page.php` | The main user dashboard template. Contains PHP logic for balance fetching and all HTML/CSS/JS for the UI. | Requires `$_SESSION['user_id']` to be set. |
-| `login-page.php` | *(Assumed)* Handles user credential submission, database lookup, password verification, and sets the required `$_SESSION` variables upon successful login. | Should redirect to `/dashboard/` on success. |
-| `/log-in/` | The target URL for unauthorized redirects. | Must be configured in your WordPress permalinks/pages. |
-
-### 🔑 Essential Session Variable
-
-The dashboard relies on this variable being set after a successful login:
-
-| Variable | Purpose |
-| :--- | :--- |
-| `$_SESSION['user_id']` | The unique primary key from the `users` database table, used to fetch the correct balance. |
-
-### 🚪 Logout
-
-The logout function in `prepare-page.php` is a placeholder that redirects to `/log-in/`. For a full logout, you must ensure that this link points to a PHP script that calls `session_destroy()` and then redirects the user.
